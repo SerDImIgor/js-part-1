@@ -1,4 +1,20 @@
-async function getData(url) {
+interface keyVal {
+    [key: string]: string;
+}
+interface keyArray {
+    [key: string]: string[];
+}
+
+interface pathDestination {
+    ph: string[];
+    dp:number;
+ }
+ interface pathDestinationObj {
+    [key: string]: pathDestination;
+ }
+
+
+async function getData(url:string):Promise<any> {
     // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
     const response = await fetch(url, {
         method: 'GET',
@@ -10,50 +26,51 @@ async function getData(url) {
     return response.json();
 }
 
-async function loadCountriesData() {
-    const countries = await getData('https://restcountries.com/v3.1/all?fields=name&fields=cca3');
-    const arrCCA3toName = {};
-    const arrNametoCCA3 = {};
-    for (let i = 0; i < countries.length; i++) {
-        const el = countries[i];
-        arrCCA3toName[el.cca3] = el;
+async function loadCountriesData():Promise<[keyVal, keyVal]> {
+    const countries:any = await getData('https://restcountries.com/v3.1/all?fields=name&fields=cca3');
+    
+    const arrCCA3toName: keyVal = {};
+    const arrNametoCCA3: keyVal = {};
+    for (let i:number = 0; i < countries.length; i++) {
+        const el:any = countries[i];
+        arrCCA3toName[el.cca3] = el.name.common;
         arrNametoCCA3[el.name.common] = el.cca3;
     }
     return [arrCCA3toName, arrNametoCCA3];
 }
 
-const form = document.getElementById('form');
-const fromCountry = document.getElementById('fromCountry');
-const toCountry = document.getElementById('toCountry');
-const countriesList = document.getElementById('countriesList');
-const submit = document.getElementById('submit');
-const output = document.getElementById('output');
+const form:HTMLElement  = document.getElementById('form') as HTMLElement;
+const fromCountry:HTMLInputElement = document.getElementById('fromCountry') as HTMLInputElement;
+const toCountry:HTMLInputElement = document.getElementById('toCountry')as HTMLInputElement;
+const countriesList:HTMLInputElement = document.getElementById('countriesList') as HTMLInputElement;
+const submit:HTMLButtonElement = document.getElementById('submit') as HTMLButtonElement;
+const output:HTMLDivElement = document.getElementById('output') as HTMLDivElement;
 
-async function loadBordersCountryData(country) {
-    const countries = await getData(`https://restcountries.com/v3.1/alpha/${country}?fields=cca3&fields=borders`);
-    return countries.borders.reduce((result, neighbor) => {
+async function loadBordersCountryData(country:string):Promise<string[]> {
+    const countries:any = await getData(`https://restcountries.com/v3.1/alpha/${country}?fields=cca3&fields=borders`);
+    return countries.borders.reduce((result:string[], neighbor:string) => {
         result.push(neighbor);
         return result;
     }, []);
 }
 
 // path optimization
-function minimazePath(maxLength, allPath, uniqueElement) {
-    const resObject = {};
-    for (let i = 0; i < uniqueElement.length; i++) {
-        const currentCountry = uniqueElement[i];
-        let minValue = maxLength;
+function minimazePath(maxLength:number, allPath:string[], uniqueElement:string[]):pathDestinationObj {
+    const resObject : pathDestinationObj = {};
+    for (let i:number = 0; i < uniqueElement.length; i++) {
+        const currentCountry:string = uniqueElement[i];
+        let minValue:number = maxLength;
         resObject[currentCountry] = { ph: [], dp: maxLength };
-        for (let j = 0; j < allPath.length; j++) {
-            const arr = allPath[j].split('>');
-            const index = arr.indexOf(currentCountry);
+        for (let j:number = 0; j < allPath.length; j++) {
+            const arr:string[] = allPath[j].split('>');
+            const index:number = arr.indexOf(currentCountry);
             if (index >= 0 && index < minValue) {
                 minValue = index + 1;
                 if (minValue < resObject[currentCountry].dp) {
                     resObject[currentCountry].ph = [];
                     resObject[currentCountry].dp = minValue;
                 }
-                const element = arr.slice(0, minValue).join('>');
+                const element:string = arr.slice(0, minValue).join('>');
                 if (resObject[currentCountry].ph.includes(element) === false) {
                     resObject[currentCountry].ph.push(element);
                 }
@@ -63,17 +80,17 @@ function minimazePath(maxLength, allPath, uniqueElement) {
     return resObject;
 }
 
-async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
-    let countRequest = 0;
-    const uniqueElement = [];
+async function getAllPathCountry(fromCountry:string, countryNeighborCach:keyArray, maxDeep:number):Promise<[pathDestinationObj, number]> {
+    let countRequest:number = 0;
+    const uniqueElement:string[] = [];
     // Find all possible paths from the given country
-    async function buildPath(fromCountry, deep) {
+    async function buildPath(fromCountry:string, deep:number):Promise<string[]> {
         if (deep >= maxDeep) {
             return [fromCountry];
         }
-        let arrNeighbor;
+        let arrNeighbor:string[]=[];
         // Let's see where to get information about the country server or cache
-        let flagCach = false;
+        let flagCach:boolean = false;
         if (countryNeighborCach.hasOwnProperty(fromCountry) === true) {
             arrNeighbor = countryNeighborCach[fromCountry];
             flagCach = true;
@@ -83,30 +100,30 @@ async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
             countryNeighborCach[fromCountry] = [];
         }
         if (flagCach === false) {
-            const index = arrNeighbor.indexOf(fromCountry);
+            const index:number = arrNeighbor.indexOf(fromCountry);
             if (index > -1) {
                 arrNeighbor.splice(index, 1);
             }
             countryNeighborCach[fromCountry] = arrNeighbor.concat([]);
         }
-        const resultArray = [];
-        for (let i = 0; i < arrNeighbor.length; i++) {
+        const resultArray:Promise<string[]>[] = [];
+        for (let i:number = 0; i < arrNeighbor.length; i++) {
             resultArray.push(buildPath(arrNeighbor[i], deep + 1));
             if (uniqueElement.includes(arrNeighbor[i]) === false) {
                 uniqueElement.push(arrNeighbor[i]);
             }
         }
-        return Promise.all(resultArray).then((result) => {
-            const resPath = [];
-            for (let i = 0; i < result.length; i++) {
-                for (let j = 0; j < result[i].length; j++) {
+        return Promise.all(resultArray).then((result:string[][]):string[] => {
+            const resPath:string[] = [];
+            for (let i:number = 0; i < result.length; i++) {
+                for (let j:number = 0; j < result[i].length; j++) {
                     resPath.push(`${fromCountry}>${result[i][j]}`);
                 }
             }
             return resPath;
         });
     }
-    const allPath = await buildPath(fromCountry, 1);
+    const allPath:string[] = await buildPath(fromCountry, 1);
     const minPath = minimazePath(maxDeep, allPath, uniqueElement);
     return [minPath, countRequest];
 }
@@ -115,50 +132,51 @@ async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
 // The second list is all paths from the endpoint.
 // We combine two lists and find the final result
 
-function findShortWay(fromCountry, toCountry, maxDeep) {
-    const keyFrom = Object.keys(fromCountry);
-    const keyTo = Object.keys(toCountry);
-    let keyMinArr = [];
-    for (let i = 0; i < keyFrom.length; i++) {
-        for (let j = 0; j < keyTo.length; j++) {
+function findShortWay(fromCountry:pathDestinationObj, toCountry:pathDestinationObj, maxDeep:number):string[] {
+    const keyFrom:string[] = Object.keys(fromCountry);
+    const keyTo:string[] = Object.keys(toCountry);
+    let keyMinArr:string[] = [];
+    let mxDp:number = maxDeep;
+    for (let i:number = 0; i < keyFrom.length; i++) {
+        for (let j:number = 0; j < keyTo.length; j++) {
             if (keyFrom[i] === keyTo[j]) {
-                const ln = fromCountry[keyFrom[i]].dp + toCountry[keyTo[j]].dp;
-                if (maxDeep === ln) {
+                const ln:number = fromCountry[keyFrom[i]].dp + toCountry[keyTo[j]].dp;
+                if (mxDp === ln) {
                     keyMinArr.push(keyFrom[i]);
-                } else if (maxDeep < ln) {
+                } else if (mxDp < ln) {
                     keyMinArr = [];
-                    maxDeep = ln;
+                    mxDp = ln;
                 }
             }
         }
     }
-    const resArray = [];
-    for (let i = 0; i < keyMinArr.length; i++) {
-        const key = keyMinArr[i];
-        for (let ii = 0; ii < toCountry[key].ph.length; ii++) {
-            const second = toCountry[key].ph[ii].split('>').reverse().slice(1).join('>');
-            for (let jj = 0; jj < fromCountry[key].ph.length; jj++) {
-                const first = fromCountry[key].ph[jj];
+    const resArray:string[] = [];
+    for (let i:number = 0; i < keyMinArr.length; i++) {
+        const key:string = keyMinArr[i];
+        for (let ii:number = 0; ii < toCountry[key].ph.length; ii++) {
+            const second:string = toCountry[key].ph[ii].split('>').reverse().slice(1).join('>');
+            for (let jj:number = 0; jj < fromCountry[key].ph.length; jj++) {
+                const first:string = fromCountry[key].ph[jj];
                 resArray.push(`${first}>${second}`);
             }
         }
     }
     return resArray;
 }
-function convertPathFromCodeToName(path, converter) {
-    const pathName = [];
-    for (let i = 0; i < path.length; i++) {
+function convertPathFromCodeToName(path:string[], converter:keyVal):string[] {
+    const pathName:string[] = [];
+    for (let i:number = 0; i < path.length; i++) {
         const arr = path[i]
             .split('>')
-            .map((x) => converter[x].name.common)
+            .map((x) => converter[x])
             .join('=>');
         pathName.push(arr);
     }
     return pathName;
 }
-async function startFindShortPath(fromCountry, toCountry, arrCountry) {
-    const maxDeepHalf = 5;
-    const countryNeighborCach = [];
+async function startFindShortPath(fromCountry:string, toCountry:string, arrCountry:keyVal):Promise<[string[],number]> {
+    const maxDeepHalf:number = 5;
+    const countryNeighborCach:keyArray = {};
     const [resultPathfromCountry, cntRequestfromCountry] = await getAllPathCountry(
         fromCountry,
         countryNeighborCach,
@@ -173,20 +191,21 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
         countryNeighborCach,
         maxDeepHalf
     );
-    const shortPaths = findShortWay(resultPathfromCountry, resultPathftoCountry, maxDeepHalf * 2);
-    const shortPathsName = convertPathFromCodeToName(shortPaths, arrCountry);
+    const shortPaths:string[] = findShortWay(resultPathfromCountry, resultPathftoCountry, maxDeepHalf * 2);
+    const shortPathsName:string[] = convertPathFromCodeToName(shortPaths, arrCountry);
     return [shortPathsName, cntRequestfromCountry + cntRequesttoCountry];
 }
 
 (async () => {
-    function setStatusElement(flag) {
+    function setStatusElement(flag:boolean) {
         fromCountry.disabled = flag;
         toCountry.disabled = flag;
         submit.disabled = flag;
     }
     setStatusElement(true);
     output.innerHTML = 'Loading…';
-    let [countriesData, arrNametoCCA3] = [[], []];
+    let countriesData:keyVal;
+    let arrNametoCCA3:keyVal;
     try {
         [countriesData, arrNametoCCA3] = await loadCountriesData();
     } catch {
@@ -196,10 +215,10 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
     }
     output.innerHTML = '';
     Object.keys(countriesData)
-        .sort((a, b) => countriesData[b].area - countriesData[a].area)
+        .sort((a, b) => countriesData[b].length - countriesData[a].length)
         .forEach((code) => {
             const option = document.createElement('option');
-            option.value = countriesData[code].name.common;
+            option.value = countriesData[code];
             countriesList.appendChild(option);
         });
 
@@ -217,7 +236,8 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
                 } else {
                     setStatusElement(true);
                     output.innerHTML = 'Loading…';
-                    let [path, cnt] = [[], 0];
+                    let path:string[] = [];
+                    let cnt:number = 0;
                     try {
                         [path, cnt] = await startFindShortPath(
                             arrNametoCCA3[fromCountry.value],

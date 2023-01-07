@@ -7,6 +7,8 @@
   "license": "MIT",
   "scripts": {
     "postinstall": "cp $(pwd)/githooks/* .git/hooks",
+    "build": "tsc --outDir ./build/",
+    "clean": "tsc --clean ./build/ ",
     "lint-staged": "lint-staged",
     "http-server": "http-server"
   },
@@ -17,5 +19,8 @@
     "http-server": "14.1.1",
     "lint-staged": "13.1.0",
     "prettier": "2.8.0"
+  },
+  "dependencies": {
+    "typescript": "4.9.4"
   }
 }
