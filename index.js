@@ -54,7 +54,7 @@ function minimizePath(maxLength, allPath, uniqueElement) {
                     resObject[currentCountry].dp = minValue;
                 }
                 const element = arr.slice(0, minValue).join('>');
-                if (resObject[currentCountry].ph.includes(element) === false) {
+                if (!resObject[currentCountry].ph.includes(element)) {
                     resObject[currentCountry].ph.push(element);
                 }
             }
@@ -74,7 +74,7 @@ async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
         let arrNeighbor;
         // Let's see where to get information about the country server or cache
         let flagCach = false;
-        if (countryNeighborCach.hasOwnProperty(fromCountry) === true) {
+        if (countryNeighborCach.hasOwnProperty(fromCountry)) {
             arrNeighbor = countryNeighborCach[fromCountry];
             flagCach = true;
         } else {
@@ -82,7 +82,7 @@ async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
             countRequest += 1;
             countryNeighborCach[fromCountry] = [];
         }
-        if (flagCach === false) {
+        if (!flagCach) {
             const index = arrNeighbor.indexOf(fromCountry);
             if (index > -1) {
                 arrNeighbor.splice(index, 1);
@@ -207,10 +207,7 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
     form.addEventListener('submit', (event) => {
         event.preventDefault();
         async function start() {
-            if (
-                arrNametoCCA3.hasOwnProperty(fromCountry.value) === true &&
-                arrNametoCCA3.hasOwnProperty(toCountry.value) === true
-            ) {
+            if (arrNametoCCA3.hasOwnProperty(fromCountry.value) && arrNametoCCA3.hasOwnProperty(toCountry.value)) {
                 if (fromCountry.value === toCountry.value) {
                     output.innerHTML = `<ol><li>${arrNametoCCA3[toCountry.value]}</li></ol><br>`;
                     output.innerHTML += `<h4>It took 0 requests for server</h4>`;
