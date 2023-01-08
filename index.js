@@ -38,7 +38,7 @@ async function loadBordersCountryData(country) {
 }
 
 // path optimization
-function minimazePath(maxLength, allPath, uniqueElement) {
+function minimizePath(maxLength, allPath, uniqueElement) {
     const resObject = {};
     for (let i = 0; i < uniqueElement.length; i++) {
         const currentCountry = uniqueElement[i];
