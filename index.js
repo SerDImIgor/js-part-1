@@ -29,8 +29,8 @@ const countriesList = document.getElementById('countriesList');
 const submit = document.getElementById('submit');
 const output = document.getElementById('output');
 
-async function loadBordersCountryData(country) {
-    const countries = await getData(`https://restcountries.com/v3.1/alpha/${country}?fields=cca3&fields=borders`);
+async function loadBordersCountryData(countryCode) {
+    const countries = await getData(`https://restcountries.com/v3.1/alpha/${countryCode}?fields=cca3&fields=borders`);
     return countries.borders.reduce((result, neighbor) => {
         result.push(neighbor);
         return result;
@@ -92,7 +92,7 @@ async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
         const resultArray = [];
         for (let i = 0; i < arrNeighbor.length; i++) {
             resultArray.push(buildPath(arrNeighbor[i], deep + 1));
-            if (uniqueElement.includes(arrNeighbor[i]) === false) {
+            if (!uniqueElement.includes(arrNeighbor[i])) {
                 uniqueElement.push(arrNeighbor[i]);
             }
         }
@@ -107,7 +107,7 @@ async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
         });
     }
     const allPath = await buildPath(fromCountry, 1);
-    const minPath = minimazePath(maxDeep, allPath, uniqueElement);
+    const minPath = minimizePath(maxDeep, allPath, uniqueElement);
     return [minPath, countRequest];
 }
 // got two lists of paths.
@@ -161,16 +161,16 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
     const countryNeighborCache = [];
     const [resultPathfromCountry, cntRequestfromCountry] = await getAllPathCountry(
         fromCountry,
-        countryNeighborCach,
+        countryNeighborCache,
         maxDeepHalf
     );
-    if (resultPathfromCountry.hasOwnProperty(toCountry) === true) {
+    if (resultPathfromCountry.hasOwnProperty(toCountry)) {
         const shortPathsName = convertPathFromCodeToName(resultPathfromCountry[toCountry].ph, arrCountry);
         return [shortPathsName, cntRequestfromCountry];
     }
     const [resultPathftoCountry, cntRequesttoCountry] = await getAllPathCountry(
         toCountry,
-        countryNeighborCach,
+        countryNeighborCache,
         maxDeepHalf
     );
     const shortPaths = findShortWay(resultPathfromCountry, resultPathftoCountry, maxDeepHalf * 2);
