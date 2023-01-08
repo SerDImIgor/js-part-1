@@ -158,7 +158,7 @@ function convertPathFromCodeToName(path, converter) {
 }
 async function startFindShortPath(fromCountry, toCountry, arrCountry) {
     const maxDeepHalf = 5;
-    const countryNeighborCach = [];
+    const countryNeighborCache = [];
     const [resultPathfromCountry, cntRequestfromCountry] = await getAllPathCountry(
         fromCountry,
         countryNeighborCach,
