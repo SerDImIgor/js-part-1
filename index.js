@@ -202,10 +202,7 @@ function startFindShortPath(fromCountry, toCountry, arrCountry, countryNeighborC
     form.addEventListener('submit', (event) => {
         event.preventDefault();
         async function start() {
-            if (
-                arrNametoCCA3.hasOwnProperty(fromCountry.value) === true &&
-                arrNametoCCA3.hasOwnProperty(toCountry.value) === true
-            ) {
+            if (arrNametoCCA3.hasOwnProperty(fromCountry.value) && arrNametoCCA3.hasOwnProperty(toCountry.value)) {
                 if (fromCountry.value === toCountry.value) {
                     output.innerHTML = `<ol><li>${arrNametoCCA3[toCountry.value]}</li></ol><br>`;
                     output.innerHTML += `<h4>It took 0 requests for server</h4>`;
