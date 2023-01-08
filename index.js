@@ -31,10 +31,27 @@ const output = document.getElementById('output');
 
 async function loadBordersCountryData(countryCode) {
     const countries = await getData(`https://restcountries.com/v3.1/alpha/${countryCode}?fields=cca3&fields=borders`);
-    return countries.borders.reduce((result, neighbor) => {
-        result.push(neighbor);
-        return result;
-    }, []);
+    return [
+        countryCode,
+        countries.borders.reduce((result, neighbor) => {
+            result.push(neighbor);
+            return result;
+        }, []),
+    ];
+}
+async function loadAllNeighborByCodeCountry(codesCountry) {
+    const arrNeighbor = [];
+    for (let i = 0; i < codesCountry.length; i++) {
+        arrNeighbor.push(loadBordersCountryData(codesCountry[i]));
+    }
+    return Promise.all(arrNeighbor).then((result) => {
+        const countryNeighborCach = {};
+        for (let i = 0; i < result.length; i++) {
+            const el = result[i];
+            countryNeighborCach[el[0]] = el[1].concat([]);
+        }
+        return countryNeighborCach;
+    });
 }
 
 // path optimization
@@ -63,52 +80,29 @@ function minimizePath(maxLength, allPath, uniqueElement) {
     return resObject;
 }
 
-async function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
-    let countRequest = 0;
+function getAllPathCountry(fromCountry, countryNeighborCach, maxDeep) {
     const uniqueElement = [];
     // Find all possible paths from the given country
-    async function buildPath(fromCountry, deep) {
+    function buildPath(fromCountry, deep) {
         if (deep >= maxDeep) {
             return [fromCountry];
         }
-        let arrNeighbor;
-        // Let's see where to get information about the country server or cache
-        let flagCach = false;
-        if (countryNeighborCach.hasOwnProperty(fromCountry) === true) {
-            arrNeighbor = countryNeighborCach[fromCountry];
-            flagCach = true;
-        } else {
-            arrNeighbor = await loadBordersCountryData(fromCountry);
-            countRequest += 1;
-            countryNeighborCach[fromCountry] = [];
-        }
-        if (flagCach === false) {
-            const index = arrNeighbor.indexOf(fromCountry);
-            if (index > -1) {
-                arrNeighbor.splice(index, 1);
-            }
-            countryNeighborCach[fromCountry] = arrNeighbor.concat([]);
-        }
-        const resultArray = [];
+        const arrNeighbor = countryNeighborCach[fromCountry];
+        const resPath = [];
         for (let i = 0; i < arrNeighbor.length; i++) {
-            resultArray.push(buildPath(arrNeighbor[i], deep + 1));
             if (!uniqueElement.includes(arrNeighbor[i])) {
                 uniqueElement.push(arrNeighbor[i]);
             }
-        }
-        return Promise.all(resultArray).then((result) => {
-            const resPath = [];
-            for (let i = 0; i < result.length; i++) {
-                for (let j = 0; j < result[i].length; j++) {
-                    resPath.push(`${fromCountry}>${result[i][j]}`);
-                }
+            const result = buildPath(arrNeighbor[i], deep + 1);
+            for (let k = 0; k < result.length; k++) {
+                resPath.push(`${fromCountry}>${result[k]}`);
             }
-            return resPath;
-        });
+        }
+        return resPath;
     }
-    const allPath = await buildPath(fromCountry, 1);
+    const allPath = buildPath(fromCountry, 1);
     const minPath = minimizePath(maxDeep, allPath, uniqueElement);
-    return [minPath, countRequest];
+    return minPath;
 }
 // got two lists of paths.
 // The first list is all paths from the starting point.
@@ -156,28 +150,18 @@ function convertPathFromCodeToName(path, converter) {
     }
     return pathName;
 }
-async function startFindShortPath(fromCountry, toCountry, arrCountry) {
+function startFindShortPath(fromCountry, toCountry, arrCountry, countryNeighborCache) {
     const maxDeepHalf = 5;
-    const countryNeighborCache = [];
-    const [resultPathfromCountry, cntRequestfromCountry] = await getAllPathCountry(
-        fromCountry,
-        countryNeighborCache,
-        maxDeepHalf
-    );
+    const resultPathfromCountry = getAllPathCountry(fromCountry, countryNeighborCache, maxDeepHalf);
     if (resultPathfromCountry.hasOwnProperty(toCountry)) {
         const shortPathsName = convertPathFromCodeToName(resultPathfromCountry[toCountry].ph, arrCountry);
-        return [shortPathsName, cntRequestfromCountry];
+        return shortPathsName;
     }
-    const [resultPathftoCountry, cntRequesttoCountry] = await getAllPathCountry(
-        toCountry,
-        countryNeighborCache,
-        maxDeepHalf
-    );
+    const resultPathftoCountry = getAllPathCountry(toCountry, countryNeighborCache, maxDeepHalf);
     const shortPaths = findShortWay(resultPathfromCountry, resultPathftoCountry, maxDeepHalf * 2);
     const shortPathsName = convertPathFromCodeToName(shortPaths, arrCountry);
-    return [shortPathsName, cntRequestfromCountry + cntRequesttoCountry];
+    return shortPathsName;
 }
-
 (async () => {
     function setStatusElement(flag) {
         fromCountry.disabled = flag;
@@ -190,6 +174,17 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
     try {
         [countriesData, arrNametoCCA3] = await loadCountriesData();
     } catch {
+        output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available</p>`;
+        setStatusElement(false);
+        return;
+    }
+    const codeCountries = Object.keys(countriesData);
+    let countryNeighborCache = {};
+    const countRequest = codeCountries.length;
+    try {
+        countryNeighborCache = await loadAllNeighborByCodeCountry(codeCountries);
+    } catch (err) {
+        console.error(err);
         output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available</p>`;
         setStatusElement(false);
         return;
@@ -217,18 +212,13 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
                 } else {
                     setStatusElement(true);
                     output.innerHTML = 'Loading…';
-                    let [path, cnt] = [[], 0];
-                    try {
-                        [path, cnt] = await startFindShortPath(
-                            arrNametoCCA3[fromCountry.value],
-                            arrNametoCCA3[toCountry.value],
-                            countriesData
-                        );
-                    } catch {
-                        output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available</p>`;
-                        setStatusElement(false);
-                        return;
-                    }
+                    const path = startFindShortPath(
+                        arrNametoCCA3[fromCountry.value],
+                        arrNametoCCA3[toCountry.value],
+                        countriesData,
+                        countryNeighborCache
+                    );
+
                     if (path.length > 0) {
                         output.innerHTML = '<ol>';
                         for (let i = 0; i < path.length; i++) {
@@ -238,7 +228,7 @@ async function startFindShortPath(fromCountry, toCountry, arrCountry) {
                     } else {
                         output.innerHTML = '<h5>Unfortunately the path was not found.</h5><br>';
                     }
-                    output.innerHTML += `<h4>It took ${cnt} requests for server</h4>`;
+                    output.innerHTML += `<h4>It took ${countRequest} requests for server</h4>`;
                     setStatusElement(false);
                 }
             } else {
