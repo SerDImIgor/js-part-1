@@ -1,3 +1,9 @@
+class CustomerError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'CustomerError';
+    }
+}
 async function getData(url) {
     // https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch
     const response = await fetch(url, {
@@ -7,6 +13,9 @@ async function getData(url) {
         },
         redirect: 'follow',
     });
+    if (!response.ok) {
+        throw new CustomerError(`Server return bad response code (${response.status}) ${response.statusText} `);
+    }
     return response.json();
 }
 
@@ -173,8 +182,13 @@ function startFindShortPath(fromCountry, toCountry, arrCountry, countryNeighborC
     let [countriesData, arrNametoCCA3] = [[], []];
     try {
         [countriesData, arrNametoCCA3] = await loadCountriesData();
-    } catch {
-        output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available</p>`;
+    } catch (err) {
+        if (err instanceof CustomerError) {
+            output.innerHTML = 'loadCountries : ';
+            output.innerHTML += err.message;
+        } else {
+            output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available ${err.message}</p>`;
+        }
         setStatusElement(false);
         return;
     }
@@ -184,8 +198,12 @@ function startFindShortPath(fromCountry, toCountry, arrCountry, countryNeighborC
     try {
         countryNeighborCache = await loadAllNeighborByCodeCountry(codeCountries);
     } catch (err) {
-        console.error(err);
-        output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available</p>`;
+        if (err instanceof CustomerError) {
+            output.innerHTML = 'getNeighbor : ';
+            output.innerHTML += err.message;
+        } else {
+            output.innerHTML = `<p style="color:red">It seems that you do not have an internet connection or the server is not available ${err.message}</p>`;
+        }
         setStatusElement(false);
         return;
     }
